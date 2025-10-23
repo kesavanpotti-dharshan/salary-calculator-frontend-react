@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, DollarSign, Clock, Briefcase, TrendingUp } from 'lucide-react';
 
 interface SalaryRequest {
@@ -91,18 +91,17 @@ export default function SalaryCalculator() {
     const currentDate = new Date(startDate);
     while (currentDate <= endDate) {
       // Format date as YYYY-MM-DD for comparison (avoids timezone issues)
-      const dateString = currentDate.toISOString().split('T')[0];
-      
+      const dateString = currentDate.toISOString().split('T')[0];      
       const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6;
       const isHoliday = holidays.includes(dateString);
 
-      if (isHoliday) {
-        holidayCount++;
-        holidayDates.push(dateString);
+      if (isHoliday) {       
+          holidayCount++;
+          holidayDates.push(dateString);        
         if (request.excludeHolidays) {
           currentDate.setDate(currentDate.getDate() + 1);
           continue; // Skip this day
-        }
+        }        
       } else if (isWeekend) {
         weekendCount++;
         if (!request.workedWeekends) {
@@ -177,13 +176,25 @@ export default function SalaryCalculator() {
     }
   };
 
+  // Redirect to home page on mount if user is on a different path
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined' && window.location && window.location.pathname !== '/') {
+        // Use replace so it doesn't add an extra history entry
+        window.location.replace('/');
+      }
+    } catch {
+      // ignore in non-browser environments
+    }
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
             <DollarSign className="w-12 h-12 text-indigo-600" />
-            <h1 className="text-4xl font-bold text-gray-800">Salary Calculator</h1>
+            <h1 className="text-4xl font-bold text-gray-800"><a href='/'>Salary Calculator</a></h1>
           </div>
           <p className="text-gray-600">Calculate your earnings for any date range</p>
         </div>
@@ -304,7 +315,7 @@ export default function SalaryCalculator() {
               <button
                 onClick={handleSubmit}
                 disabled={loading}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                className="w-full bg-indigo-400 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
                 {loading ? 'Calculating...' : 'Calculate Salary'}
               </button>
