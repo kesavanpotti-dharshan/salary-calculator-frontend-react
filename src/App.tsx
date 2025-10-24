@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Calendar, DollarSign, Clock, Briefcase, TrendingUp } from 'lucide-react';
 
 interface SalaryRequest {
@@ -23,6 +23,8 @@ interface SalaryResponse {
   weekendSalary: number;
   holidaySalary: number;
   effectiveWeekendRate: number;
+  annualSalary: number;
+  annualHours: number;
 }
 
 export default function SalaryCalculator() {
@@ -66,6 +68,12 @@ export default function SalaryCalculator() {
     '2026-12-25'
   ];
 
+  // Parse a YYYY-MM-DD string into a local Date (avoids Date parsing as UTC)
+  const parseLocalDate = (s: string) => {
+    const [y, m, d] = s.split('-').map(Number);
+    return new Date(y, (m || 1) - 1, d || 1);
+  };
+
   const calculateSalary = (request: SalaryRequest): SalaryResponse => {
     const startDate = new Date(request.startDate);
     const endDate = new Date(request.endDate);
@@ -91,17 +99,18 @@ export default function SalaryCalculator() {
     const currentDate = new Date(startDate);
     while (currentDate <= endDate) {
       // Format date as YYYY-MM-DD for comparison (avoids timezone issues)
-      const dateString = currentDate.toISOString().split('T')[0];      
+      const dateString = currentDate.toISOString().split('T')[0];
+      
       const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6;
       const isHoliday = holidays.includes(dateString);
 
-      if (isHoliday) {       
-          holidayCount++;
-          holidayDates.push(dateString);        
+      if (isHoliday) {
+        holidayCount++;
         if (request.excludeHolidays) {
           currentDate.setDate(currentDate.getDate() + 1);
+          holidayDates.push(dateString);
           continue; // Skip this day
-        }        
+        }
       } else if (isWeekend) {
         weekendCount++;
         if (!request.workedWeekends) {
@@ -131,6 +140,13 @@ export default function SalaryCalculator() {
     const totalDays = weekdayCount + (request.workedWeekends ? weekendCount : 0) + 
                       (request.excludeHolidays ? 0 : holidayCount);
 
+    // Calculate annual salary (assuming 52 weeks, 5 days per week, standard hours)
+    const weeksPerYear = 52;
+    const workDaysPerWeek = 5;
+    const annualWorkDays = weeksPerYear * workDaysPerWeek; // 260 days
+    const annualHours = annualWorkDays * request.hoursPerDay;
+    const annualSalary = annualHours * request.hourlyRate;
+
     return {
       totalSalary: Math.round(totalSalary * 100) / 100,
       totalHours,
@@ -142,7 +158,9 @@ export default function SalaryCalculator() {
       weekdaySalary: Math.round(weekdaySalary * 100) / 100,
       weekendSalary: Math.round(weekendSalary * 100) / 100,
       holidaySalary: Math.round(holidaySalary * 100) / 100,
-      effectiveWeekendRate: Math.round(effectiveWeekendRate * 100) / 100
+      effectiveWeekendRate: Math.round(effectiveWeekendRate * 100) / 100,
+      annualSalary: Math.round(annualSalary * 100) / 100,
+      annualHours
     };
   };
 
@@ -176,27 +194,15 @@ export default function SalaryCalculator() {
     }
   };
 
-  // Redirect to home page on mount if user is on a different path
-  useEffect(() => {
-    try {
-      if (typeof window !== 'undefined' && window.location && window.location.pathname !== '/') {
-        // Use replace so it doesn't add an extra history entry
-        window.location.replace('/');
-      }
-    } catch {
-      // ignore in non-browser environments
-    }
-  }, []);
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
             <DollarSign className="w-12 h-12 text-indigo-600" />
-            <h1 className="text-4xl font-bold text-gray-800"><a href='/'>Salary Calculator</a></h1>
+            <h1 className="text-4xl font-bold underline text-gray-800">Salary Calculator</h1>
           </div>
-          <p className="text-gray-600">Calculate your earnings for any date range</p>
+          <p className="text-gray-600">Calculate your earnings for any date range with ease</p>
         </div>
 
         <div className="grid md:grid-cols-2 gap-8">
@@ -315,7 +321,7 @@ export default function SalaryCalculator() {
               <button
                 onClick={handleSubmit}
                 disabled={loading}
-                className="w-full bg-indigo-400 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
                 {loading ? 'Calculating...' : 'Calculate Salary'}
               </button>
@@ -338,8 +344,18 @@ export default function SalaryCalculator() {
               </div>
             ) : (
               <div className="space-y-6">
+                {/* Annual Salary Card */}
+                <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl p-6 text-white">
+                  <p className="text-sm opacity-90 mb-1">Estimated Annual Salary</p>
+                  <p className="text-3xl font-bold">${result.annualSalary.toLocaleString()}</p>
+                  <p className="text-sm opacity-75 mt-2">
+                    Based on {result.annualHours} hours/year (52 weeks × 5 days × {formData.hoursPerDay} hrs)
+                  </p>
+                </div>
+
+                {/* Total Salary for Date Range */}
                 <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl p-6 text-white">
-                  <p className="text-sm opacity-90 mb-1">Total Salary</p>
+                  <p className="text-sm opacity-90 mb-1">Total Salary (For Date Range)</p>
                   <p className="text-4xl font-bold">${result.totalSalary.toLocaleString()}</p>
                   <p className="text-sm opacity-75 mt-2">
                     {result.totalHours} hours across {result.totalDays} days
@@ -386,9 +402,9 @@ export default function SalaryCalculator() {
                       <summary className="cursor-pointer text-sm text-indigo-600 hover:text-indigo-800">
                         View holidays in date range ({result.holidayDates.length})
                       </summary>
-                      <ul className="mt-2 text-xs text-gray-600 space-y-1 pl-4">
+                      <ul className="mt-2 text-xs text-red-600 font-bold space-y-1 pl-4">
                         {result.holidayDates.map((date, idx) => (
-                          <li key={idx}>• {new Date(date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</li>
+                          <li key={idx}>• {parseLocalDate(date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</li>
                         ))}
                       </ul>
                     </details>
